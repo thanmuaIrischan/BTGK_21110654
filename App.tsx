@@ -35,10 +35,13 @@ export default class Stopwatch extends Component<{}, StopwatchState> {
         <Text style={[styles.lapText, this.getLongestShortestColor(index)]}>
           Lap {index + 1}
         </Text>
-        <Text style={styles.lapTextSecond}>{formatTime(time)}</Text>
+        <Text style={[styles.lapText, this.getLongestShortestColor(index)]}>
+          {formatTime(time)}
+        </Text>
       </View>
     ));
   }
+
   getLongestShortestColor(index: number) {
     const maxTime = Math.max(...this.state.laps);
     const minTime = Math.min(...this.state.laps);
