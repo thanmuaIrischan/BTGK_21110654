@@ -1,118 +1,203 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import React, {Component} from 'react';
+const formatTime = require('minutes-seconds-milliseconds');
 import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
+  AppRegistry,
   StyleSheet,
   Text,
-  useColorScheme,
   View,
+  TextInput,
+  TouchableHighlight,
 } from 'react-native';
-
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
-
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
-
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
+interface StopwatchState {
+  timeElapsed: number | null;
+  running: boolean;
+  startTime: Date | null;
+  laps: number[];
 }
+export default class Stopwatch extends Component<{}, StopwatchState> {
+  interval: NodeJS.Timeout | null = null;
+  constructor(props: {}) {
+    super(props);
+    this.state = {
+      timeElapsed: null,
+      running: false,
+      startTime: null,
+      laps: [],
+    };
+    this.handleStartPress = this.handleStartPress.bind(this);
+    this.startStopButton = this.startStopButton.bind(this);
+    this.handleLapPress = this.handleLapPress.bind(this);
+  }
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+  laps() {
+    return this.state.laps.map((time, index) => (
+      <View key={index} style={styles.lap}>
+        <Text style={[styles.lapText, this.getLongestShortestColor(index)]}>
+          Lap {index + 1}
+        </Text>
+        <Text style={styles.lapTextSecond}>{formatTime(time)}</Text>
+      </View>
+    ));
+  }
+  getLongestShortestColor(index: number) {
+    const maxTime = Math.max(...this.state.laps);
+    const minTime = Math.min(...this.state.laps);
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
+    if (this.state.laps[index] === maxTime) {
+      return {color: 'red'};
+    } else if (this.state.laps[index] === minTime) {
+      return {color: 'green'};
+    }
 
-  return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
+    return {};
+  }
+
+  startStopButton() {
+    return (
+      <TouchableHighlight
+        underlayColor="gray"
+        onPress={this.handleStartPress}
+        style={[
+          styles.button,
+          this.state.running ? styles.stopButton : styles.startButton,
+        ]}>
+        <Text
+          style={{fontSize: 20, color: this.state.running ? 'red' : '#5EA804'}}>
+          {this.state.running ? 'Stop' : 'Start'}
+        </Text>
+      </TouchableHighlight>
+    );
+  }
+
+  lapButton() {
+    return (
+      <TouchableHighlight
+        style={styles.button}
+        underlayColor="gray"
+        onPress={this.handleLapPress}>
+        <Text style={{fontSize: 20, color: 'white'}}>Lap</Text>
+      </TouchableHighlight>
+    );
+  }
+
+  handleLapPress() {
+    if (this.state.timeElapsed !== null) {
+      var lap = this.state.timeElapsed;
+
+      this.setState({
+        startTime: new Date(),
+        laps: this.state.laps.concat([lap]),
+      });
+    }
+  }
+
+  handleStartPress() {
+    if (this.state.running) {
+      if (this.interval) clearInterval(this.interval);
+      this.setState({
+        running: false,
+        timeElapsed: 0,
+      });
+      return;
+    }
+
+    this.setState({startTime: new Date()});
+
+    this.interval = setInterval(() => {
+      if (this.state.startTime !== null) {
+        this.setState(prevState => ({
+          timeElapsed: new Date().getTime() - prevState.startTime!.getTime(),
+          running: true,
+        }));
+      }
+    }, 30);
+  }
+
+  componentWillUnmount() {
+    if (this.interval) clearInterval(this.interval);
+  }
+
+  render() {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.timerWrapper}>
+            <Text style={styles.timer}>
+              {formatTime(this.state.timeElapsed || 0)}
+            </Text>
+          </View>
+          <View style={styles.buttonWrapper}>
+            {this.lapButton()}
+            {this.startStopButton()}
+          </View>
         </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+        <View style={styles.footer}>{this.laps()}</View>
+      </View>
+    );
+  }
 }
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  container: {
+    flex: 1,
+    backgroundColor: 'black',
+    padding: 20,
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
+  header: {
+    flex: 1,
+    height: 20,
   },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
+  footer: {
+    flex: 1,
   },
-  highlight: {
-    fontWeight: '700',
+  timerWrapper: {
+    flex: 5,
+    justifyContent: 'center',
+    alignContent: 'center',
+  },
+  buttonWrapper: {
+    flex: 3,
+    top: 30,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  lap: {
+    justifyContent: 'space-between',
+    flexDirection: 'row',
+    //padding: 10,
+    marginTop: 10,
+  },
+  button: {
+    borderWidth: 2,
+    height: 100,
+    width: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'black',
+    borderColor: 'white',
+    padding: 2,
+  },
+  timer: {
+    paddingTop: 100,
+    fontSize: 100,
+    color: 'white',
+    paddingLeft: 20,
+  },
+  lapText: {
+    fontSize: 20,
+    color: 'white',
+  },
+
+  lapTextSecond: {
+    fontSize: 20,
+    color: 'white',
+  },
+  startButton: {
+    borderColor: '#5EA804',
+  },
+  stopButton: {
+    borderColor: 'red',
   },
 });
-
-export default App;
